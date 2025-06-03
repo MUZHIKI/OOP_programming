@@ -6,6 +6,7 @@ from groups import AllSprites
 from random import choice
 import pygame
 import time
+import sys  # Добавляем sys для завершения программы
 
 class Menu:
     def __init__(self, game):
@@ -74,7 +75,7 @@ class Menu:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
-                    return
+                    sys.exit()  # Завершаем программу полностью
                 self.handle_event(event)
             self.draw_input_screen()
 
@@ -83,7 +84,7 @@ class Menu:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
-                    return
+                    sys.exit()  # Завершаем программу полностью
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     play_button = self.draw_intro_screen()
                     if play_button.collidepoint(event.pos):
@@ -97,8 +98,8 @@ class Game:
         pygame.display.set_caption('The Last Hope')
         self.clock = pygame.time.Clock()
         self.running = True
-        self.game_over = False  # Флаг для завершения игры
-        self.show_leaderboard_flag = False  # Флаг для отображения турнирной таблицы
+        self.game_over = False
+        self.show_leaderboard_flag = False
 
         self.all_sprites = AllSprites()
         self.collision_sprites = pygame.sprite.Group()
@@ -119,14 +120,13 @@ class Game:
         self.impact_sound = pygame.mixer.Sound(BASE_DIR / 'audio' / 'impact.ogg')
         self.music = pygame.mixer.Sound(BASE_DIR / 'audio' / 'music.wav')
         self.music.set_volume(0.5)
-        self.hurt_sound = pygame.mixer.Sound(BASE_DIR / 'audio' / 'hurt.wav')  # Звук при потере сердца
-        self.death_sound = pygame.mixer.Sound(BASE_DIR / 'audio' / 'death.wav')  # Звук при смерти
+        self.hurt_sound = pygame.mixer.Sound(BASE_DIR / 'audio' / 'hurt.wav')
+        self.death_sound = pygame.mixer.Sound(BASE_DIR / 'audio' / 'death.wav')
 
-        # Счётчик убитых врагов и времени
         self.killed_enemies = 0
-        self.start_time = time.time()  # Время начала игры
+        self.start_time = time.time()
 
-        self.load_images()  # Загрузка изображений
+        self.load_images()
         self.setup()
 
         # Меню
@@ -135,10 +135,7 @@ class Game:
         self.menu.run()
 
     def load_images(self):
-        # Загрузка изображения пули
         self.bullet_surf = pygame.image.load(BASE_DIR / 'images' / 'gun' / 'bullet.png').convert_alpha()
-
-        # Загрузка анимаций врагов
         folders = list((BASE_DIR / 'images' / 'enemies').iterdir())
         self.enemy_frames = {}
         for folder in folders:
@@ -150,16 +147,12 @@ class Game:
 
     def setup(self):
         map = load_pygame(BASE_DIR / 'data' / 'maps' / 'world.tmx')
-
         for x, y, image in map.get_layer_by_name('Ground').tiles():
             Sprite((x * TILE_SIZE, y * TILE_SIZE), image, self.all_sprites)
-
         for obj in map.get_layer_by_name('Objects'):
             CollisionSprite((obj.x, obj.y), obj.image, (self.all_sprites, self.collision_sprites))
-
         for obj in map.get_layer_by_name('Collisions'):
             CollisionSprite((obj.x, obj.y), pygame.Surface((obj.width, obj.height)), self.collision_sprites)
-
         for obj in map.get_layer_by_name('Entities'):
             if obj.name == 'Player':
                 self.player = Player((obj.x, obj.y), self.all_sprites, self.collision_sprites, self.hurt_sound)
@@ -188,50 +181,39 @@ class Game:
                 self.impact_sound.play()
                 for sprite in collision_sprites:
                     sprite.destroy()
-                    self.killed_enemies += 1  # Увеличиваем счётчик убитых врагов
+                    self.killed_enemies += 1
                 bullet.kill()
 
     def player_collision(self):
         if pygame.sprite.spritecollide(self.player, self.enemy_sprites, False, pygame.sprite.collide_mask):
-            self.player.take_damage()  # Уменьшаем жизни при столкновении
+            self.player.take_damage()
             if self.player.health <= 0:
-                self.death_sound.play()  # Воспроизводим звук смерти
-                self.game_over = True  # Завершаем игру, если жизни закончились
+                self.death_sound.play()
+                self.game_over = True
 
     def save_result(self):
-        # Получаем текущий результат игрока
         player_name = self.menu.text
         time_survived = int(time.time() - self.start_time)
         kills = self.killed_enemies
-
-        # Читаем текущие результаты из файла
         try:
             with open("leaderboard.txt", "r") as file:
                 lines = file.readlines()
         except FileNotFoundError:
             lines = []
-
-        # Ищем запись с таким же именем
         updated_lines = []
         player_found = False
         for line in lines:
             name, old_time, old_kills = line.strip().split(", ")
             if name == player_name:
-                # Если новый результат лучше (больше убийств), обновляем запись
                 if kills > int(old_kills):
                     updated_lines.append(f"{player_name}, {time_survived}, {kills}\n")
                 else:
-                    # Иначе оставляем старую запись
                     updated_lines.append(line)
                 player_found = True
             else:
                 updated_lines.append(line)
-
-        # Если игрок не найден, добавляем новую запись
         if not player_found:
             updated_lines.append(f"{player_name}, {time_survived}, {kills}\n")
-
-        # Записываем обновлённые результаты обратно в файл
         with open("leaderboard.txt", "w") as file:
             file.writelines(updated_lines)
 
@@ -241,16 +223,13 @@ class Game:
         text = font.render('Game Over', True, (255, 0, 0))
         text_rect = text.get_rect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 - 50))
         self.display_surface.blit(text, text_rect)
-
         font = pygame.font.Font(None, 50)
         restart_text = font.render('Press R to Restart', True, (255, 255, 255))
         restart_rect = restart_text.get_rect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 + 50))
         self.display_surface.blit(restart_text, restart_rect)
-
         leaderboard_text = font.render('Press L for Leaderboard', True, (255, 255, 255))
         leaderboard_rect = leaderboard_text.get_rect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 + 120))
         self.display_surface.blit(leaderboard_text, leaderboard_rect)
-
         pygame.display.update()
 
     def show_leaderboard(self):
@@ -258,14 +237,12 @@ class Game:
         font = pygame.font.Font(None, 50)
         title_text = font.render("Leaderboard", True, (255, 255, 255))
         self.display_surface.blit(title_text, (WINDOW_WIDTH // 2 - 100, 50))
-
         try:
             with open("leaderboard.txt", "r") as file:
                 results = file.readlines()
                 results = [line.strip().split(", ") for line in results]
-                results.sort(key=lambda x: int(x[2]), reverse=True)  # Сортировка по количеству убитых врагов
-
-                for i, result in enumerate(results[:10]):  # Показываем топ-10 результатов
+                results.sort(key=lambda x: int(x[2]), reverse=True)
+                for i, result in enumerate(results[:10]):
                     name, time_survived, kills = result
                     result_text = f"{i + 1}. {name}: {time_survived}s, {kills} kills"
                     text_surface = font.render(result_text, True, (255, 255, 255))
@@ -273,89 +250,71 @@ class Game:
         except FileNotFoundError:
             text_surface = font.render("No results yet!", True, (255, 255, 255))
             self.display_surface.blit(text_surface, (WINDOW_WIDTH // 2 - 100, WINDOW_HEIGHT // 2))
-
         back_text = font.render("Press B to go back", True, (255, 255, 255))
         self.display_surface.blit(back_text, (WINDOW_WIDTH // 2 - 100, WINDOW_HEIGHT - 100))
         pygame.display.update()
 
     def restart_game(self):
-        # Очищаем группы спрайтов
         self.all_sprites.empty()
         self.collision_sprites.empty()
         self.bullet_sprites.empty()
         self.enemy_sprites.empty()
-
-        # Сбрасываем счётчики
         self.killed_enemies = 0
         self.start_time = time.time()
-
-        # Перезапускаем игру
         self.setup()
         self.game_over = False
         self.running = True
 
     def draw_health(self):
-        # Создаём шрифт
-        font = pygame.font.Font(None, 36)  # Размер шрифта 36
-        # Текст с количеством жизней
+        font = pygame.font.Font(None, 36)
         health_text = f"Health: {self.player.health}"
-        # Рендерим текст
-        text_surface = font.render(health_text, True, (255, 255, 255))  # Белый цвет текста
-        # Отображаем текст в верхнем левом углу
+        text_surface = font.render(health_text, True, (255, 255, 255))
         self.display_surface.blit(text_surface, (10, 10))
 
     def draw_killed_enemies(self):
-        # Создаём шрифт
-        font = pygame.font.Font(None, 36)  # Размер шрифта 36
-        # Текст с количеством убитых врагов
+        font = pygame.font.Font(None, 36)
         enemies_text = f"Killed: {self.killed_enemies}"
-        # Рендерим текст
-        text_surface = font.render(enemies_text, True, (255, 255, 255))  # Белый цвет текста
-        # Отображаем текст в правом верхнем углу
+        text_surface = font.render(enemies_text, True, (255, 255, 255))
         self.display_surface.blit(text_surface, (WINDOW_WIDTH - 150, 10))
 
     def run(self):
         while self.running:
-            dt = self.clock.tick(60) / 1000  # Ограничение FPS до 60
-
+            dt = self.clock.tick(60) / 1000
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
                 if event.type == self.enemy_event:
                     Enemy(choice(self.spawn_positions), choice(list(self.enemy_frames.values())),
                           (self.all_sprites, self.enemy_sprites), self.player, self.collision_sprites)
-
             if not self.game_over and not self.show_leaderboard_flag:
                 self.gun_timer()
                 self.input()
                 self.all_sprites.update(dt)
                 self.bullet_collision()
                 self.player_collision()
-
                 self.display_surface.fill('black')
                 self.all_sprites.draw(self.player.rect.center)
-                self.draw_health()  # Отрисовка текста с количеством жизней
-                self.draw_killed_enemies()  # Отрисовка текста с количеством убитых врагов
+                self.draw_health()
+                self.draw_killed_enemies()
             elif self.game_over:
                 self.show_game_over_screen()
                 keys = pygame.key.get_pressed()
-                if keys[pygame.K_r]:  # Перезапуск игры при нажатии R
+                if keys[pygame.K_r]:
                     self.restart_game()
-                if keys[pygame.K_l]:  # Переход к турнирной таблице при нажатии L
+                if keys[pygame.K_l]:
                     self.save_result()
                     self.show_leaderboard_flag = True
                     self.game_over = False
             elif self.show_leaderboard_flag:
-                self.show_leaderboard()  # Отображаем турнирную таблицу
+                self.show_leaderboard()
                 keys = pygame.key.get_pressed()
-                if keys[pygame.K_b]:  # Возврат в меню при нажатии B
+                if keys[pygame.K_b]:
                     self.show_leaderboard_flag = False
                     self.running = False
-                    self.__init__()  # Перезапуск игры
-
+                    self.__init__()
             pygame.display.update()
-
         pygame.quit()
+        sys.exit()  # Завершаем программу после выхода из игрового цикла
 
 if __name__ == '__main__':
     game = Game()

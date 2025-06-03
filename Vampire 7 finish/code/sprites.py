@@ -6,14 +6,16 @@ class Sprite(pygame.sprite.Sprite):
     def __init__(self, pos, surf, groups):
         super().__init__(groups)
         self.image = surf
-        self.rect = self.image.get_rect(topleft=pos)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = pos  # Устанавливаем позицию вручную
         self.ground = True
 
 class CollisionSprite(pygame.sprite.Sprite):
     def __init__(self, pos, surf, groups):
         super().__init__(groups)
         self.image = surf
-        self.rect = self.image.get_rect(topleft=pos)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = pos  # Устанавливаем позицию вручную
 
 class Gun(pygame.sprite.Sprite):
     def __init__(self, player, groups):
@@ -75,15 +77,16 @@ class Enemy(pygame.sprite.Sprite):
         self.collision_sprites = collision_sprites
         self.direction = pygame.Vector2()
         self.speed = 200
+        self.min_distance = 50
 
         self.death_time = 0
         self.death_duration = 400
 
-        self.last_attack_time = 0  # Время последней атаки
+        self.last_attack_time = 0
 
     def attack_player(self):
         current_time = pygame.time.get_ticks()
-        if current_time - self.last_attack_time > 1000:  # Атака раз в 1 секунду (1000 мс)
+        if current_time - self.last_attack_time > 1000:
             if self.hitbox_rect.colliderect(self.player.hitbox_rect):
                 self.player.take_damage()
                 self.last_attack_time = current_time
@@ -96,16 +99,17 @@ class Enemy(pygame.sprite.Sprite):
         player_pos = pygame.Vector2(self.player.rect.center)
         enemy_pos = pygame.Vector2(self.rect.center)
         direction = player_pos - enemy_pos
-        if direction.length() > 0:  # Проверка на нулевой вектор
-            self.direction = direction.normalize()
-        else:
-            self.direction = pygame.Vector2(0, 0)  # Если вектор нулевой, направление не меняем
+        distance = direction.length()
 
-        self.hitbox_rect.x += self.direction.x * self.speed * dt
-        self.collision('horizontal')
-        self.hitbox_rect.y += self.direction.y * self.speed * dt
-        self.collision('vertical')
-        self.rect.center = self.hitbox_rect.center
+        if distance > self.min_distance and distance > 0:
+            self.direction = direction.normalize()
+            self.hitbox_rect.x += self.direction.x * self.speed * dt
+            self.collision('horizontal')
+            self.hitbox_rect.y += self.direction.y * self.speed * dt
+            self.collision('vertical')
+            self.rect.center = self.hitbox_rect.center
+        else:
+            self.direction = pygame.Vector2(0, 0)
 
     def collision(self, direction):
         for sprite in self.collision_sprites:
@@ -131,6 +135,6 @@ class Enemy(pygame.sprite.Sprite):
         if self.death_time == 0:
             self.move(dt)
             self.animate(dt)
-            self.attack_player()  # Проверка атаки игрока
+            self.attack_player()
         else:
             self.death_timer()
